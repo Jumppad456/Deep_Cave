@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Deep Cave</title>
+  <style>
+    body {
+      background: black;
+      color: white;
+      font-family: monospace;
+      padding: 1em;
+    }
+    #image-frame {
+      width: 100%;
+      height: 600px;
+      border: 2px solid white;
+      margin-bottom: 1em;
+      background-size: cover;
+      background-position: center;
+    }
+    #output {
+      white-space: pre-wrap;
+      margin-bottom: 1em;
+    }
+    input {
+      width: 100%;
+      background: black;
+      color: white;
+      border: 1px solid white;
+      padding: 0.5em;
+      font-family: monospace;
+    }
+  </style>
+</head>
+<body>
+
+<h2>Deep Cave</h2>
+<div id="image-frame"></div>
+<div id="output"></div>
+<input type="text" id="input" placeholder="Введите команду и нажмите Enter...">
+
+<script>
+const output = document.getElementById("output");
+const input = document.getElementById("input");
+const imageFrame = document.getElementById("image-frame");
+
+let currentRoom = "вход";
+let inventory = [];
+let chestOpened = false;
+
+const rooms = {
+  "вход": {
+    description: "Вы стоите у входа в тёмную пещеру. Назад пути нет. Куда пойти: влево, вправо, вперёд?",
+    exits: { "вперёд": "туннель", "влево": "пропасть", "вправо": "комната_с_ключом" },
+    image: "3.jpg" //  сюда вставь путь к изображению входа
+  },
+  "пропасть": {
+    description: "Вы сделали шаг влево и упали в бездонную пропасть... Игра окончена.",
+    exits: {},
+    image: "dead.jpg"
+  },
+  "комната_с_ключом": {
+    description: "Вы в маленькой пещерной комнате. На камне лежит металлический ключ. Есть проход обратно в главную комнату.",
+    exits: { "влево": "вход" },
+    item: "ключ",
+    image: "2.jpg"
+  },
+  "туннель": {
+    description: "Длинный туннель. Каменные стены, мрак. В конце — сияние. Можно вернуться назад или идти вперёд.",
+    exits: { "назад": "вход", "вперёд": "комната_с_сундуком" },
+    image: "1.jpg"
+  },
+  "комната_с_сундуком": {
+    description: () => {
+      if (chestOpened) return "Пустая комната. Сундук уже открыт. Сияние исчезло.";
+      if (inventory.includes("ключ")) return "Вы в комнате с сундуком. Используйте ключ, чтобы открыть его.";
+      return "Вы в комнате с сундуком. Он заперт. Нужно вернуться за ключом.";
+    },
+    exits: { "назад": "туннель" },
+    image: "exit.jpg"
+  }
+};
+
+function show(text) {
+  output.innerText += text + "\n";
+  output.scrollTop = output.scrollHeight;
+}
+
+function updateImage() {
+  const room = rooms[currentRoom];
+  const imgPath = typeof room.image === "string" ? room.image : null;
+  if (imgPath) {
+    imageFrame.style.backgroundImage = `url('${imgPath}')`;
+  } else {
+    imageFrame.style.backgroundImage = "";
+  }
+}
+
+function look() {
+  const room = rooms[currentRoom];
+  const desc = typeof room.description === "function" ? room.description() : room.description;
+  show(desc);
+  if (room.item) {
+    show("Вы видите здесь: " + room.item);
+  }
+  updateImage();
+}
+
+function handleCommand(command) {
+  const [verb, ...rest] = command.toLowerCase().split(" ");
+  const target = rest.join(" ");
+
+  if (currentRoom === "пропасть") {
+    show("Вы мертвы. Обновите страницу, чтобы начать заново.");
+    return;
+  }
+
+  if (verb === "осмотреть") {
+    look();
+
+  } else if (verb === "идти") {
+    const dest = rooms[currentRoom].exits[target];
+    if (dest) {
+      currentRoom = dest;
+      look();
+    } else {
+      show("Вы не можете туда пойти.");
+    }
+
+  } else if (verb === "взять") {
+    const room = rooms[currentRoom];
+    if (room.item === target) {
+      inventory.push(target);
+      show("Вы взяли: " + target);
+      delete room.item;
+    } else {
+      show("Здесь нет такого предмета.");
+    }
+
+  } else if (verb === "использовать") {
+    if (target === "ключ" && currentRoom === "комната_с_сундуком") {
+      if (inventory.includes("ключ")) {
+        show("Вы использовали ключ. Сундук открылся! Внутри... сокровища! Победа!");
+        chestOpened = true;
+      } else {
+        show("У вас нет ключа.");
+      }
+    } else {
+      show("Нельзя использовать это здесь.");
+    }
+
+  } else if (verb === "инвентарь") {
+    show("У вас: " + (inventory.length ? inventory.join(", ") : "ничего"));
+
+  } else {
+    show("Неизвестная команда.");
+  }
+}
+
+input.addEventListener("keydown", function(e) {
+  if (e.key === "Enter") {
+    const command = input.value.trim();
+    if (command) {
+      show("> " + command);
+      handleCommand(command);
+    }
+    input.value = "";
+  }
+});
+
+look();
+</script>
+
+</body>
+</html>
